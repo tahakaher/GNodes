@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0d1117">
+    <title>G-Nodes — محرر البرمجة المرئي</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <!-- ============ الشريط العلوي ============ -->
+    <header class="topbar" id="topbar">
+        <div class="topbar__brand">
+            <button class="btn btn--icon topbar__menu" id="btn-menu" title="القائمة" aria-label="القائمة">
+                <i class="fa-solid fa-bars"></i>
+            </button>
+            <span class="topbar__logo"><i class="fa-solid fa-diagram-project"></i></span>
+            <div class="topbar__title">
+                <h1>G-Nodes</h1>
+                <small>محرر البرمجة المرئي · بايثون</small>
+            </div>
+        </div>
+
+        <div class="topbar__project" id="topbar-project" title="المشروع الحالي">
+            <i class="fa-regular fa-folder"></i>
+            <span class="topbar__project-name" id="project-name">—</span>
+            <span class="topbar__dirty" id="project-dirty" title="تعديلات غير محفوظة" hidden></span>
+        </div>
+
+        <div class="topbar__actions">
+            <button class="btn" id="btn-gallery" title="معرض المشاريع">
+                <i class="fa-solid fa-folder-tree"></i><span>المشاريع</span>
+            </button>
+            <button class="btn" id="btn-fit" title="توسيط العرض">
+                <i class="fa-solid fa-crop-simple"></i><span>توسيط</span>
+            </button>
+            <button class="btn" id="btn-reset-zoom" title="إعادة التكبير 100%">
+                <i class="fa-solid fa-magnifying-glass"></i><span id="zoom-label">100%</span>
+            </button>
+            <button class="btn" id="btn-clear" title="مسح لوحة العمل">
+                <i class="fa-solid fa-trash-can"></i><span>مسح</span>
+            </button>
+            <button class="btn btn--accent" id="btn-toggle-panel" title="إظهار/إخفاء اللوحة الجانبية">
+                <i class="fa-brands fa-python"></i><span>الكود</span>
+            </button>
+        </div>
+    </header>
+
+    <div class="app" id="app">
+
+        <!-- ---------- الشريط الجانبي: مكتبة العُقد ---------- -->
+        <aside class="sidebar" id="sidebar" aria-label="مكتبة العُقد">
+            <div class="sidebar__header">
+                <i class="fa-solid fa-cubes"></i>
+                <span>مكتبة العُقد</span>
+                <button class="sidebar__close" id="btn-sidebar-close" aria-label="إغلاق"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <p class="sidebar__hint">اسحب أي عقدة إلى لوحة العمل، أو انقر مرّتين لإضافتها في المنتصف.</p>
+            <nav class="palette" id="palette"></nav>
+            <div class="sidebar__footer">
+                <i class="fa-regular fa-lightbulb"></i>
+                <span>عجلة الماوس = تكبير · اسحب الفراغ = تحريك · انقر السلك = حذف</span>
+            </div>
+        </aside>
+
+        <!-- ---------- لوحة العمل اللانهائية ---------- -->
+        <main class="canvas-wrap" id="canvas-wrap">
+            <div class="grid-bg" id="grid-bg"></div>
+            <div class="world" id="world">
+                <svg class="wires" id="wires" xmlns="http://www.w3.org/2000/svg"></svg>
+                <div class="nodes-layer" id="nodes-layer"></div>
+            </div>
+            <div class="coords-hud" id="coords-hud">x: 0 · y: 0</div>
+            <div class="empty-state" id="empty-state">
+                <i class="fa-solid fa-hand-pointer"></i>
+                <p>اسحب عقدة من الشريط الجانبي لتبدأ البناء</p>
+            </div>
+            <!-- أزرار تكبير عائمة (مفيدة للمس) -->
+            <div class="zoom-controls" id="zoom-controls">
+                <button class="zoom-btn" id="btn-zoom-in" aria-label="تكبير"><i class="fa-solid fa-plus"></i></button>
+                <button class="zoom-btn" id="btn-zoom-out" aria-label="تصغير"><i class="fa-solid fa-minus"></i></button>
+            </div>
+        </main>
+
+        <!-- ---------- اللوحة الجانبية: الكود + JSON + إحصائيات ---------- -->
+        <section class="datapanel" id="datapanel" aria-label="لوحة الكود والبيانات">
+            <div class="datapanel__header">
+                <div class="datapanel__tabs" id="panel-tabs">
+                    <button class="tab tab--active" data-view="code"><i class="fa-brands fa-python"></i> كود بايثون</button>
+                    <button class="tab" data-view="graph"><i class="fa-solid fa-brackets-curly"></i> JSON</button>
+                    <button class="tab" data-view="stats"><i class="fa-solid fa-chart-simple"></i> إحصائيات</button>
+                </div>
+                <div class="datapanel__toolbtns">
+                    <button class="btn btn--small" id="btn-sync-toggle" title="تبديل المزامنة الثنائية">
+                        <i class="fa-solid fa-arrows-rotate"></i>
+                    </button>
+                    <button class="btn btn--small" id="btn-copy" title="نسخ">
+                        <i class="fa-regular fa-copy"></i>
+                    </button>
+                </div>
+            </div>
+
+            <div class="datapanel__body">
+                <!-- عرض الكود: محرّر قابل للتحرير (مزامنة عكسية) -->
+                <div class="code-view" id="code-view">
+                    <div class="code-editor-wrap">
+                        <textarea class="code-editor" id="code-editor" spellcheck="false"
+                                  wrap="off" placeholder="# اكتب كود بايثون هنا وسيتحوّل إلى عُقد..."></textarea>
+                    </div>
+                    <div class="code-status" id="code-status">
+                        <span class="code-status__ok"><i class="fa-solid fa-circle-check"></i> جاهز</span>
+                    </div>
+                </div>
+                <!-- عرض JSON -->
+                <pre class="json-view" id="json-view" hidden></pre>
+                <!-- عرض الإحصائيات -->
+                <div class="stats-view" id="stats-view" hidden></div>
+            </div>
+
+            <p class="datapanel__note">
+                <i class="fa-solid fa-circle-info"></i>
+                <span id="panel-note">الكود يتولّد حياً من العُقد. يمكنك تحرير الكود مباشرة لإعادة بناء العُقد (مزامنة ثنائية).</span>
+            </p>
+        </section>
+    </div>
+
+    <!-- ============ معرض المشاريع (Project Gallery) ============ -->
+    <aside class="gallery" id="gallery" aria-label="معرض المشاريع">
+        <header class="gallery__header">
+            <div class="gallery__title">
+                <i class="fa-solid fa-folder-tree"></i>
+                <span>معرض المشاريع</span>
+            </div>
+            <button class="gallery__close" id="btn-gallery-close" aria-label="إغلاق">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+        </header>
+
+        <div class="gallery__toolbar">
+            <button class="btn btn--accent btn--small" id="btn-gallery-new">
+                <i class="fa-solid fa-plus"></i><span>مشروع جديد</span>
+            </button>
+            <button class="btn btn--small" id="btn-gallery-import">
+                <i class="fa-solid fa-file-import"></i><span>استيراد .gnode</span>
+            </button>
+        </div>
+
+        <div class="gallery__list" id="gallery-list"><!-- تُملأ ديناميكياً --></div>
+
+        <footer class="gallery__footer">
+            <i class="fa-regular fa-floppy-disk"></i>
+            <span>يُحفظ كل مشروع تلقائياً في متصفّحك (localStorage) بعد ثانية من التوقف عن التعديل.</span>
+        </footer>
+    </aside>
+
+    <!-- إدخال ملفّ الاستيراد المخفي -->
+    <input type="file" id="import-file" accept=".gnode,application/json,.json" hidden>
+
+    <!-- طبقة الإشعارات (Toasts) -->
+    <div class="toast-layer" id="toast-layer" aria-live="polite"></div>
+
+    <!-- خلفية معتّمة للجوال عند فتح القوائم -->
+    <div class="scrim" id="scrim"></div>
+
+    <!-- ذيل حقوق الملكية -->
+    <div class="copyright-footer" aria-hidden="true">
+        © 2026 G-Nodes 1.0. Developed by Taha Al-Ghurairi (Ghain Studio). All rights reserved.
+    </div>
+
+    <!-- ============ نافذة إنشاء/تعديل عقدة مخصصة ============ -->
+    <div class="cn-modal" id="custom-node-modal" role="dialog" aria-modal="true" aria-labelledby="cn-modal-title">
+        <div class="cn-modal__box">
+            <header class="cn-modal__header">
+                <h2 class="cn-modal__title" id="cn-modal-title">إنشاء عقدة مخصصة</h2>
+                <button class="cn-modal__close" id="cn-close" aria-label="إغلاق">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </header>
+
+            <form class="cn-modal__form" id="cn-form" autocomplete="off">
+                <!-- اسم العقدة -->
+                <div class="cn-field">
+                    <label class="cn-label" for="cn-name">
+                        اسم العقدة
+                        <span class="cn-label__hint">بالإنجليزية snake_case</span>
+                    </label>
+                    <input class="cn-input" id="cn-name" name="cn-name" type="text"
+                           placeholder="my_function" autocomplete="off"
+                           spellcheck="false" dir="ltr">
+                    <p class="cn-error" id="cn-name-error" hidden></p>
+                </div>
+
+                <!-- منافذ الإدخال -->
+                <div class="cn-field">
+                    <label class="cn-label" for="cn-inputs">
+                        منافذ الإدخال
+                        <span class="cn-label__hint">أسماء مفصولة بفاصلة</span>
+                    </label>
+                    <input class="cn-input" id="cn-inputs" name="cn-inputs" type="text"
+                           placeholder="a, b, value" dir="ltr">
+                </div>
+
+                <!-- منافذ الإخراج -->
+                <div class="cn-field">
+                    <label class="cn-label" for="cn-outputs">
+                        منافذ الإخراج
+                        <span class="cn-label__hint">أسماء مفصولة بفاصلة</span>
+                    </label>
+                    <input class="cn-input" id="cn-outputs" name="cn-outputs" type="text"
+                           placeholder="result" dir="ltr">
+                </div>
+
+                <!-- كود بايثون -->
+                <div class="cn-field cn-field--code">
+                    <label class="cn-label" for="cn-code">
+                        كود بايثون (جسم الدالة)
+                        <span class="cn-label__hint">بدون سطر def أو return — تُضافان تلقائياً</span>
+                    </label>
+                    <textarea class="cn-textarea" id="cn-code" name="cn-code"
+                              rows="7" spellcheck="false" dir="ltr"
+                              placeholder="result = a + b"></textarea>
+                </div>
+
+                <div class="cn-modal__footer">
+                    <button type="button" class="btn" id="cn-cancel">إلغاء</button>
+                    <button type="submit" class="btn btn--accent">
+                        <i class="fa-solid fa-floppy-disk"></i> حفظ العقدة
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- سكربتات المشروع -->
+    <script src="js/nodeLibrary.js"></script>
+    <script src="js/graph.js"></script>
+    <script src="js/generator.js"></script>
+    <script src="js/parser.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/canvas.js"></script>
+    <script src="js/nodes.js"></script>
+    <script src="js/wires.js"></script>
+    <script src="js/customNodes.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
